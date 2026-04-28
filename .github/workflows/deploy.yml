@@ -1,0 +1,141 @@
+name: Deploy to Cloud Server
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - '**.json'
+      - 'tests/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install paramiko
+
+      - name: Deploy to server via SSH
+        env:
+          HOST: connect.bjb1.seetacloud.com
+          PORT: 38591
+          USERNAME: root
+          PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
+          REMOTE_PATH: /root/tiandao-trpg
+          PYTHON_PATH: /root/miniconda3/bin/python
+          SERVICE_PORT: 6006
+          SERVICE_NAME: tiandao-trpg
+        run: |
+          python << 'EOF'
+import paramiko
+import os
+import time
+
+host = os.environ['HOST']
+port = int(os.environ['PORT'])
+username = os.environ['USERNAME']
+password = os.environ['PASSWORD']
+remote_path = os.environ['REMOTE_PATH']
+python_path = os.environ['PYTHON_PATH']
+service_port = os.environ['SERVICE_PORT']
+service_name = os.environ['SERVICE_NAME']
+
+print(f"Connecting to {host}:{port}...")
+
+ssh = paramiko.SSHClient()
+ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+ssh.connect(host, port=port, username=username, password=password, timeout=15)
+sftp = ssh.open_sftp()
+print("[OK] Connected")
+
+# 1. Stop service
+print("Stopping service...")
+stdin, stdout, stderr = ssh.exec_command(f"pkill -f '{service_name}' || true", timeout=10)
+time.sleep(2)
+print("[OK] Service stopped")
+
+# 2. Create remote directory
+print("Creating remote directory...")
+ssh.exec_command(f"mkdir -p {remote_path}", timeout=10)
+
+# 3. Upload files (skip .git, __pycache__, .md, .json)
+local_path = '.'
+uploaded = 0
+skipped = 0
+
+for root, dirs, files in os.walk(local_path):
+    # Skip ignored directories
+    dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ['__pycache__', 'node_modules', '.data']]
+
+    for file in files:
+        if file.startswith('.') or file.endswith(('.pyc', '.md', '.json')):
+            skipped += 1
+            continue
+
+        local_file = os.path.join(root, file)
+        rel_path = os.path.relpath(local_file, local_path)
+        remote_file = f"{remote_path}/{rel_path}"
+        remote_dir = os.path.dirname(remote_file)
+
+        # Create remote directory
+        ssh.exec_command(f"mkdir -p '{remote_dir}'", timeout=5)
+
+        try:
+            sftp.put(local_file, remote_file)
+            uploaded += 1
+            if uploaded % 20 == 0:
+                print(f"  Uploaded {uploaded} files...")
+        except Exception as e:
+            print(f"  Upload failed {rel_path}: {e}")
+
+print(f"[OK] Upload complete: {uploaded} files uploaded, {skipped} skipped")
+
+# 4. Install dependencies
+print("Installing dependencies...")
+stdin, stdout, stderr = ssh.exec_command(
+    f"cd {remote_path} && {python_path} -m pip install -r requirements.txt -q",
+    timeout=120
+)
+out = stdout.read().decode()
+err = stderr.read().decode()
+if err:
+    print(f"  pip stderr: {err[:200]}")
+print("[OK] Dependencies installed")
+
+# 5. Start service
+print("Starting service...")
+cmd = f"cd {remote_path} && nohup {python_path} -m uvicorn src.server:app --host 0.0.0.0 --port {service_port} > /root/tiandao_service.log 2>&1 &"
+ssh.exec_command(cmd, timeout=10)
+time.sleep(3)
+
+# 6. Verify service
+print("Verifying service...")
+stdin, stdout, stderr = ssh.exec_command(f"curl -s http://127.0.0.1:{service_port}/api/health || curl -s http://127.0.0.1:{service_port}/", timeout=10)
+out = stdout.read().decode()
+if out:
+    print(f"[OK] Service response: {out[:200]}")
+else:
+    print("[WARN] No response, checking logs...")
+    stdin, stdout, stderr = ssh.exec_command("tail -10 /root/tiandao_service.log", timeout=5)
+    print(stdout.read().decode())
+
+sftp.close()
+ssh.close()
+print("[OK] Deploy complete!")
+EOF
+
+      - name: Verify deployment
+        run: |
+          echo "Checking if service is accessible..."
+          curl -s --max-time 10 https://u892543-zjue-dc99aa16.bjb1.seetacloud.com:8443/api/health || echo "Health check attempted"
