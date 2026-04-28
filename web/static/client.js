@@ -208,13 +208,17 @@ function confirmCharacter() {
         showScreen('waiting-screen');
         
         // 更新等待界面信息
-        document.getElementById('target-count').textContent = targetCount;
-        document.getElementById('current-count').textContent = '1';
+        const targetEl = document.getElementById('target-count');
+        const currentEl = document.getElementById('current-count');
+        if (targetEl) targetEl.textContent = targetCount;
+        if (currentEl) currentEl.textContent = '1';
         
         // 单人模式提示
         if (targetCount === 1) {
-            document.getElementById('solo-hint').style.display = 'block';
-            document.getElementById('start-btn').textContent = '独自冒险';
+            const soloHint = document.getElementById('solo-hint');
+            const startBtn = document.getElementById('start-btn');
+            if (soloHint) soloHint.style.display = 'block';
+            if (startBtn) startBtn.textContent = '独自冒险';
         }
         
         // 更新玩家列表
@@ -271,10 +275,14 @@ async function createGame() {
         saveSession();
 
         // 更新等待界面
-        document.getElementById('waiting-room-name').textContent = gameName;
-        document.getElementById('waiting-room-code').textContent = roomCode;
-        document.getElementById('share-code').textContent = roomCode;
-        document.getElementById('player-name').textContent = nickname;
+        const waitingRoomName = document.getElementById('waiting-room-name');
+        const waitingRoomCode = document.getElementById('waiting-room-code');
+        const shareCode = document.getElementById('share-code');
+        const playerName = document.getElementById('player-name');
+        if (waitingRoomName) waitingRoomName.textContent = gameName;
+        if (waitingRoomCode) waitingRoomCode.textContent = roomCode;
+        if (shareCode) shareCode.textContent = roomCode;
+        if (playerName) playerName.textContent = nickname;
 
         // 显示角色创建
         showScreen('character-screen');
@@ -391,9 +399,12 @@ function enterGameScreen() {
     showScreen('game-screen');
 
     // 更新界面
-    document.getElementById('room-name').textContent = currentGame.name;
-    document.getElementById('room-code-display').textContent = roomCode;
-    document.getElementById('player-name').textContent = nickname;
+    const roomName = document.getElementById('room-name');
+    const roomCodeDisplay = document.getElementById('room-code-display');
+    const playerName = document.getElementById('player-name');
+    if (roomName) roomName.textContent = currentGame.name;
+    if (roomCodeDisplay) roomCodeDisplay.textContent = roomCode;
+    if (playerName) playerName.textContent = nickname;
 
     // 更新位置
     updateLocationInfo();
@@ -403,14 +414,25 @@ function enterGameScreen() {
 }
 
 function updateLocationInfo() {
-    if (!currentGame || !currentGame.world) return;
+    const currentLocationEl = document.getElementById('current-location');
+    if (!currentLocationEl) return;
+    if (!currentGame || !currentGame.world) {
+        currentLocationEl.textContent = '未知地点';
+        return;
+    }
 
     const loc = currentGame.world.current_location_id;
     const locations = currentGame.world.locations;
+    if (!locations || !loc) {
+        currentLocationEl.textContent = '未知地点';
+        return;
+    }
     const location = locations[loc];
 
     if (location) {
-        document.getElementById('current-location').textContent = location.name || '未知地点';
+        currentLocationEl.textContent = location.name || '未知地点';
+    } else {
+        currentLocationEl.textContent = '未知地点';
     }
 
     updatePlayersList();
@@ -619,8 +641,10 @@ function showCharacterInfo() {
         <p><strong>性格:</strong> ${PERSONALITY_NAMES[charCreation.personality] || '未知'}</p>
         <p><strong>背景:</strong> ${BACKGROUND_TITLES[charCreation.background] || '未知'}</p>
     `;
-    document.getElementById('modal-char-name').textContent = charCreation.name || nickname;
-    document.getElementById('modal-char-info').innerHTML = info;
+    const modalCharName = document.getElementById('modal-char-name');
+    const modalCharInfo = document.getElementById('modal-char-info');
+    if (modalCharName) modalCharName.textContent = charCreation.name || nickname;
+    if (modalCharInfo) modalCharInfo.innerHTML = info;
     showModal('character-modal');
 }
 
@@ -628,8 +652,10 @@ function showWorldInfo() {
     if (!currentGame || !currentGame.world) return;
 
     const world = currentGame.world;
-    document.getElementById('modal-world-name').textContent = world.name || '未知世界';
-    document.getElementById('modal-world-info').innerHTML = `
+    const modalWorldName = document.getElementById('modal-world-name');
+    const modalWorldInfo = document.getElementById('modal-world-info');
+    if (modalWorldName) modalWorldName.textContent = world.name || '未知世界';
+    if (modalWorldInfo) modalWorldInfo.innerHTML = `
         <p><strong>类型:</strong> ${getWorldTypeName(world.world_type)}</p>
         <p><strong>简介:</strong> ${world.overview || '暂无描述'}</p>
     `;
@@ -666,8 +692,10 @@ function showLocationInfo() {
         npcList += '</ul>';
     }
 
-    document.getElementById('modal-char-name').textContent = location?.name || '未知地点';
-    document.getElementById('modal-char-info').innerHTML = `
+    const modalCharName = document.getElementById('modal-char-name');
+    const modalCharInfo = document.getElementById('modal-char-info');
+    if (modalCharName) modalCharName.textContent = location?.name || '未知地点';
+    if (modalCharInfo) modalCharInfo.innerHTML = `
         <p><strong>描述:</strong> ${location?.description || '暂无描述'}</p>
         <p><strong>氛围:</strong> ${location?.atmosphere || '普通'}</p>
         <p><strong>出口:</strong> ${(location?.exits || []).join(', ') || '无'}</p>
