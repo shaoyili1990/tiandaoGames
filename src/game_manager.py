@@ -295,6 +295,9 @@ class GameManager:
 
             # 都市NPC
             npcs = self._create_urban_npcs(locations)
+            # 补充全球角色卡库NPC
+            global_npcs = self._generate_global_npcs(locations, "urban")
+            npcs.extend(global_npcs)
             game.world.npcs = {npc.npc_id: npc for npc in npcs}
 
         elif world_type == "fantasy":
@@ -310,6 +313,9 @@ class GameManager:
 
             # 奇幻NPC
             npcs = self._create_fantasy_npcs(locations)
+            # 补充全球角色卡库NPC
+            global_npcs = self._generate_global_npcs(locations, "fantasy")
+            npcs.extend(global_npcs)
             game.world.npcs = {npc.npc_id: npc for npc in npcs}
 
         elif world_type == "sci_fi":
@@ -325,6 +331,9 @@ class GameManager:
 
             # 科幻NPC
             npcs = self._create_scifi_npcs(locations)
+            # 补充全球角色卡库NPC
+            global_npcs = self._generate_global_npcs(locations, "sci_fi")
+            npcs.extend(global_npcs)
             game.world.npcs = {npc.npc_id: npc for npc in npcs}
 
         elif world_type == "infinite_flow":
@@ -338,6 +347,8 @@ class GameManager:
             game.world.current_location_id = locations[0].location_id
 
             npcs = self._create_infinite_flow_npcs(locations)
+            global_npcs = self._generate_global_npcs(locations, "original")
+            npcs.extend(global_npcs)
             game.world.npcs = {npc.npc_id: npc for npc in npcs}
 
         elif world_type == "baldurs_gate":
@@ -1133,6 +1144,37 @@ class GameManager:
             )
         ]
         return [npc for npc in npcs if npc.location is not None or npc.name == "空间意志"]
+
+
+    def _generate_global_npcs(self, locations, world_type: str = None):
+        """从全局角色卡库生成NPC"""
+        from character_cards import generate_npc, GLOBAL_NPC_TEMPLATES
+        import random
+
+        if world_type is None:
+            world_type = random.choice(list(GLOBAL_NPC_TEMPLATES.keys()))
+
+        npcs = []
+        # 每个地点生成2-4个NPC
+        for loc in locations:
+            count = random.randint(2, 4)
+            for _ in range(count):
+                npc_data = generate_npc(world_type)
+                npc = NPC(
+                    npc_id=generate_id(),
+                    name=npc_data["name"],
+                    role="npc",
+                    disposition=random.choice(["friendly", "neutral", "hostile"]),
+                    appearance=npc_data["appearance"],
+                    personality=npc_data["personality"],
+                    location=loc.location_id,
+                    dialogue_style=npc_data["voice_style"],
+                    knowledge=[npc_data["backstory"][:50]],
+                    dialogue_samples=[npc_data["backstory"]]
+                )
+                npcs.append(npc)
+
+        return npcs
 
 
 # 全局实例
