@@ -10,8 +10,8 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 # MiniMax API配置
-MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "sk-cp-0lJKWK60XX7GOFbQA5dmo7bXKfjLnb5SslBbWRipE_GjkVtK-EiImkfXqR-dszI28CGtbHmbj149c_A2xwskTM4ZmYreseISl5a_rCGFi4HgvtM_MH1jD2c")
-MINIMAX_API_HOST = os.getenv("MINIMAX_API_HOST", "https://api.minimax.io")
+MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "sk-api-GPHHQZRj34gOKsKR746ttKxFLOFULRP_GlnDnbiZpfLEpIQnkGUmjE8oMIqqfENe7kdpAy2IWJslqDcEwESU7K4M-ijZlrONyti49UxNE8hF6OMIftM50Qs")
+MINIMAX_API_HOST = os.getenv("MINIMAX_API_HOST", "https://api.minimaxi.com")
 
 class AIService:
     """AI服务 - 使用MiniMax API"""
