@@ -269,6 +269,10 @@ class GameRecord(BaseModel):
     # 世界
     world: World = Field(default_factory=World)
 
+    # 游戏配置
+    player_count: int = 4  # 期望玩家数量
+    world_description: str = ""  # 用户描述想要的世界
+
     # 事件
     active_events: List[GameEvent] = []
     completed_event_ids: List[str] = []
