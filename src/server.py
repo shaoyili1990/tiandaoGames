@@ -30,7 +30,7 @@ from models import (
     SystemMessage, EventMessage, generate_id, now
 )
 from game_manager import game_manager
-from ai_service import ai_service, AIService
+from ai_service import AIService
 from events import event_manager, EventGenerator
 from persistence import SaveManager
 
@@ -178,9 +178,7 @@ async def create_game(request: CreateGameRequest):
     game.world_description = request.world_description
 
     # AI生成世界 (基于用户描述,非固定模板)
-    from ai_service import AIService
-    ai_service = AIService()
-    world_data = ai_service.generate_world_ai(
+    world_data = AIService.generate_world_ai(
         player_count=request.player_count,
         world_description=request.world_description
     )
@@ -547,7 +545,7 @@ async def handle_message(game_id: str, player_id: str, data: dict):
             loc = game.world.locations[location_id]
 
             # 使用AI服务生成位置描述
-            dm_desc = AIService.generate_dm_description(game.model_dump(), {"action": "move", "location": loc})
+            dm_desc = AIService.generate_dm_response(game.model_dump(), player.model_dump(), f"我到达了{loc.name}")
 
             await manager.broadcast(game_id, {
                 "type": "system",
@@ -652,11 +650,7 @@ async def generate_dm_response(game_id: str, player: Player, content: str):
         return
 
     # 使用AI服务生成描述
-    context = {
-        "player": player,
-        "content": content
-    }
-    dm_text = AIService.generate_dm_description(game.model_dump(), context)
+    dm_text = AIService.generate_dm_response(game.model_dump(), player.model_dump(), content)
 
     # 检查随机事件触发
     triggered_events = EventGenerator.check_and_trigger_events(game, "random")
@@ -684,7 +678,7 @@ async def generate_npc_response(game_id: str, player: Player, npc: NPC):
         return
 
     # 使用AI服务获取NPC对话
-    dialogue = AIService.get_npc_dialogue(npc.model_dump(), npc.disposition)
+    dialogue = AIService.generate_npc_dialogue(npc.model_dump(), context)
 
     # 根据NPC性格选择称呼
     if npc.disposition == "friendly":

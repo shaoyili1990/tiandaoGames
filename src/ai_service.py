@@ -1,454 +1,199 @@
 """
 天道 TRPG Party - AI服务
-处理DM响应和世界生成
+处理DM响应和世界生成 - 使用MiniMax API
 """
 
 import os
 import json
-import random
+import httpx
 from typing import Dict, List, Optional
 from datetime import datetime
 
-# AI配置
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-
+# MiniMax API配置
+MINIMAX_API_KEY = os.getenv("MINIMAX_API_KEY", "sk-cp-0lJKWK60XX7GOFbQA5dmo7bXKfjLnb5SslBbWRipE_GjkVtK-EiImkfXqR-dszI28CGtbHmbj149c_A2xwskTM4ZmYreseISl5a_rCGFi4HgvtM_MH1jD2c")
+MINIMAX_API_HOST = os.getenv("MINIMAX_API_HOST", "https://api.minimax.io")
 
 class AIService:
-    """AI服务（简化版，不依赖外部API）"""
-
-    # NPC对话模板
-    NPC_TEMPLATES = {
-        "innkeeper": {
-            "friendly": [
-                "欢迎光临！今天想来点什么？",
-                "哟，贵客来了！请坐请坐！",
-                "这位客官面生啊，第一次来吧？"
-            ],
-            "neutral": [
-                "嗯...要点什么？",
-                "后面排队。",
-                "等着。"
-            ],
-            "hostile": [
-                "你瞅啥？",
-                "找事儿的吧？",
-                "滚。"
-            ]
-        },
-        "guard": {
-            "friendly": [
-                "辛苦了！请进吧。",
-                "长官好！",
-                "例行检查，请配合。"
-            ],
-            "neutral": [
-                "站住，什么事？",
-                "通行证。",
-                "闲杂人等不得靠近。"
-            ],
-            "hostile": [
-                "再往前一步就别怪我不客气了！",
-                "想死？",
-                "滚远点！"
-            ]
-        },
-        "merchant": {
-            "friendly": [
-                "来来来，看看这好东西！",
-                "保证正品，价格公道！",
-                "童叟无欺，货真价实！"
-            ],
-            "neutral": [
-                "买东西？自己看。",
-                "价格单在那儿。",
-                "不还价。"
-            ],
-            "hostile": [
-                "穷鬼别碰！",
-                "买不起别看！",
-                "滚！"
-            ]
-        },
-        "waiter": {
-            "friendly": [
-                "客官里边请！",
-                "小二，上茶！",
-                "客官要点什么？"
-            ],
-            "neutral": [
-                "催什么催。",
-                "等着。",
-                "急什么。"
-            ],
-            "hostile": [
-                "去去去，没位置了。",
-                "滚出去！",
-                "别烦我。"
-            ]
-        },
-        "bartender": {
-            "friendly": [
-                "想喝点什么？",
-                "今晚想听点什么故事？",
-                "新面孔啊，第一次来？"
-            ],
-            "neutral": [
-                "老样子？",
-                "喝什么自己点。",
-                "等着。"
-            ],
-            "hostile": [
-                "我不喜欢你的态度。",
-                "出去清醒清醒再来。",
-                "滚。"
-            ]
-        },
-        "default": {
-            "friendly": ["你好。", "幸会幸会。", "请多指教。"],
-            "neutral": ["嗯。", "是吗。", "然后呢。"],
-            "hostile": ["滚。", "别烦我。", "找事儿？"]
-        }
-    }
-
-    # DM描述模板 - 丰富的沉浸式描述
-    DM_TEMPLATES = {
-        "arrival": [
-            "你来到了{location}。{description}",
-            "你走进了{location}。{description}",
-            "你踏入{location}，{atmosphere}。{description}"
-        ],
-        "atmosphere": [
-            "空气中弥漫着{feeling}的气息。",
-            "这里给人的感觉是{feeling}。",
-            "{feeling}的气氛笼罩着整个空间。"
-        ],
-        "npc_present": [
-            "在场的NPC有：{npcs}。他们似乎在忙着自己的事情。",
-            "你注意到{npcs}也在这里，目光偶尔扫过你。",
-            "{npcs}正注视着你，似乎在打量你这个外来者。"
-        ],
-        "npc_interaction": [
-            "{npc}似乎注意到了你，抬起头来...",
-            "{npc}主动向你走来，似乎有话要说...",
-            "你的目光与{npc}相遇，对方微微点头示意。"
-        ],
-        "observation": [
-            "你仔细打量着这里的一切...",
-            "你的目光扫过每一个角落，注意到{details}",
-            "你静静地观察着周围，{observation}"
-        ],
-        "time_of_day": {
-            "dawn": "晨曦初现，天边泛着鱼肚白，露珠在草叶上闪烁。",
-            "day": "阳光明媚，{location}里人来人往，一派热闹景象。",
-            "dusk": "夕阳西下，天边染上了橙红色的晚霞，归巢的鸟儿掠过天空。",
-            "night": "夜幕降临，星光点点，月光洒落，给一切都披上了一层银纱。"
-        }
-    }
-
-    # 动作响应 - 沉浸式
-    ACTION_RESPONSES = {
-        "look_around": [
-            "你环顾四周，仔细打量着这里的一切。",
-            "你的目光扫过每一个角落，试图发现什么有趣的东西。",
-            "你静静地观察着周围的环境和人。"
-        ],
-        "observe": [
-            "你仔细观察着周围的一切...",
-            "你的目光扫过每一个细节...",
-            "你留意着周围的动静..."
-        ],
-        "talk": [
-            "你开口说话，希望能引起别人的注意。",
-            "你主动与身边的人攀谈起来。",
-            "你尝试与周围的人交流。"
-        ],
-        "chat": [
-            "你开口说话，希望能引起别人的注意。",
-            "你主动与身边的人攀谈起来。",
-            "你尝试与周围的人交流。"
-        ],
-        "explore": [
-            "你决定四处走走，探索一下这个地方。",
-            "你沿着街道漫步，观察着周围的一切。",
-            "你深入探索这个区域的各个角落。"
-        ],
-        "search": [
-            "你仔细搜寻可能遗漏的细节...",
-            "你翻找着可能有用或有趣的东西...",
-            "你的目光在搜寻任何有价值的目标..."
-        ],
-        "fight": [
-            "你摆出战斗姿态，警惕地注视着对方！",
-            "气氛骤然紧张起来，一场冲突似乎不可避免...",
-            "你做好了战斗准备，随时可能出手。"
-        ],
-        "sneak": [
-            "你放轻脚步，小心翼翼地移动，避免引起注意...",
-            "你试图悄悄行动，不惊动周围的人...",
-            "你隐蔽着自己的身形，悄然靠近目标..."
-        ],
-        "default": [
-            "你做出了这个动作。",
-            "你尝试着...",
-            "你进行了这个行为。"
-        ]
-    }
-
-    # 世界特定的观察细节
-    WORLD_OBSERVATION = {
-        "fantasy": {
-            "details": [
-                "客栈的角落里有人在低声交谈", "墙上贴着通缉令和寻人告示",
-                "有人腰间佩剑，气质不凡", "柜台上的账本翻得飞快",
-                "空气中隐约有灵气的波动"
-            ],
-            "npc_activities": [
-                "有的修士在角落里打坐修炼", "几个江湖客在划拳喝酒",
-                "小二忙进忙出地招呼客人", "一个神秘人独自坐在阴影中"
-            ]
-        },
-        "urban": {
-            "details": [
-                "霓虹灯闪烁，车辆川流不息", "路边的小吃摊飘来阵阵香味",
-                "上班族行色匆匆", "商店橱窗里陈列着各种商品",
-                "地铁站入口人来人往"
-            ],
-            "npc_activities": [
-                "有人在打电话，声音急促", "情侣手牵手漫步",
-                "学生们背着书包匆匆走过", "老人在下棋聊天"
-            ]
-        },
-        "sci_fi": {
-            "details": [
-                "全息广告在头顶闪烁", "飞行器在天际穿梭",
-                "机器人服务员在忙碌", "人们戴着各种增强现实设备",
-                "巨大的电子屏幕显示着新闻和广告"
-            ],
-            "npc_activities": [
-                "有人正在和AI助手对话", "赏金猎人在检查武器",
-                "黑客在角落里的终端上敲打", "贵族在私人包厢里交谈"
-            ]
-        }
-    }
+    """AI服务 - 使用MiniMax API"""
 
     @classmethod
-    def get_npc_dialogue(cls, npc: dict, context: str = "neutral") -> str:
-        """获取NPC对话"""
-        role = npc.get("role", "default").lower()
-        templates = cls.NPC_TEMPLATES.get(role, cls.NPC_TEMPLATES["default"])
+    def _call_minimax(cls, messages: list, model: str = "MiniMax-Text-01", temperature: float = 0.7, max_tokens: int = 500) -> str:
+        """调用MiniMax Chat API"""
+        url = f"{MINIMAX_API_HOST}/v1/text/chatcompletion_v2"
 
-        disposition = npc.get("disposition", "neutral")
-        dialogues = templates.get(disposition, templates["neutral"])
+        headers = {
+            "Authorization": f"Bearer {MINIMAX_API_KEY}",
+            "Content-Type": "application/json"
+        }
 
-        return random.choice(dialogues)
+        payload = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens
+        }
+
+        try:
+            with httpx.Client(timeout=30.0) as client:
+                response = client.post(url, headers=headers, json=payload)
+                response.raise_for_status()
+                data = response.json()
+                return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        except Exception as e:
+            print(f"[MiniMax API Error] {e}")
+            return f"【系统消息】AI服务暂时不可用: {str(e)}"
 
     @classmethod
-    def generate_dm_description(cls, game: dict, context: dict) -> str:
-        """生成天道DM描述"""
+    def generate_dm_response(cls, game: dict, player: dict, message: str) -> str:
+        """生成天道DM响应 - 调用MiniMax"""
         world = game.get("world", {})
-        location_id = world.get("current_location_id")
+        world_name = world.get("name", "未知世界")
+        world_overview = world.get("overview", "")
+        current_location_id = world.get("current_location_id")
         locations = world.get("locations", {})
         npcs = world.get("npcs", {})
-        game_time = world.get("game_time", "day")
-        world_type = world.get("world_type", "fantasy")
 
-        parts = []
+        current_location = locations.get(current_location_id, {}) if current_location_id else {}
+        location_name = current_location.get("name", "酒馆")
+        location_desc = current_location.get("description", "")
+        location_atmosphere = current_location.get("atmosphere", "")
 
-        # 位置描述
-        if location_id and location_id in locations:
-            loc = locations[location_id]
-            desc = loc.get("description", "")
-
-            # 获取世界特定的观察细节
-            world_obs = cls.WORLD_OBSERVATION.get(world_type, {})
-            details = world_obs.get("details", ["一切都很平常"])
-
-            template = random.choice(cls.DM_TEMPLATES["arrival"])
-            parts.append(template.format(
-                location=loc.get("name", "未知地点"),
-                atmosphere=loc.get("atmosphere", ""),
-                description=desc
-            ))
-
-            # 添加世界特定的细节
-            if random.random() > 0.5:  # 50%几率添加额外细节
-                parts.append(f"你注意到：{random.choice(details)}。")
-
-        # 时间描述
-        time_template = cls.DM_TEMPLATES["time_of_day"].get(game_time, "")
-        if time_template and location_id and location_id in locations:
-            parts.append(time_template.format(location=locations[location_id].get("name", "")))
-
-        # NPC描述
+        # 获取在场NPC
         present_npcs = []
         for npc_id, npc in npcs.items():
-            if npc.get("location") == location_id:
+            if npc.get("location") == current_location_id:
                 present_npcs.append(npc.get("name", "某人"))
 
-        if present_npcs:
-            template = random.choice(cls.DM_TEMPLATES["npc_present"])
-            nppc_str = "、".join(present_npcs[:3])
-            if len(present_npcs) > 3:
-                nppc_str += f"等{len(present_npcs)}人"
-            parts.append(template.format(npcs=nppc_str))
+        npc_str = "、".join(present_npcs) if present_npcs else "暂无其他人"
 
-            # 添加NPC活动描述
-            world_obs = cls.WORLD_OBSERVATION.get(world_type, {})
-            npc_activities = world_obs.get("npc_activities", [])
-            if npc_activities and random.random() > 0.5:
-                parts.append(random.choice(npc_activities))
+        system_prompt = f"""你是天道TRPG的DM。你为玩家创造沉浸式的跑团体验。
+当前世界：{world_name}
+世界背景：{world_overview}
+当前位置：{location_name}
+地点描述：{location_desc}
+场所氛围：{location_atmosphere}
+在场人物：{npc_str}
 
-        return "【天道】" + "\n\n".join(parts)
+玩家({player.get('nickname', '匿名冒险者')})说: {message}
 
-    @classmethod
-    def generate_action_response(cls, action: str, player: dict, game: dict) -> str:
-        """生成动作响应"""
-        action_lower = action.lower()
+请以天道DM的身份，用1-2句话沉浸式地回应玩家。保持中文，语言生动有画面感。"""
 
-        # 识别动作类型
-        response_type = "default"
-        for key in cls.ACTION_RESPONSES.keys():
-            if key in action_lower:
-                response_type = key
-                break
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message}
+        ]
 
-        templates = cls.ACTION_RESPONSES.get(response_type, cls.ACTION_RESPONSES["default"])
-        response = random.choice(templates)
-
-        # 获取世界类型
-        world_type = game.get("world", {}).get("world_type", "fantasy")
-        world_obs = cls.WORLD_OBSERVATION.get(world_type, {})
-
-        # 添加世界特定的细节
-        if random.random() > 0.3:  # 70%几率添加细节
-            details = world_obs.get("details", [])
-            if details:
-                response += f"\n{random.choice(details)}。"
-
-        return f"【{player.get('nickname', '你')}】{action}\n\n【天道】{response}"
-
-    @classmethod
-    def generate_world(cls, world_type: str, user_prompt: str = "") -> dict:
-        """生成世界（简化版）"""
-        worlds = {
-            "fantasy": {
-                "name": random.choice(["天元大陆", "青云界", "玄黄世界", "沧溟仙域"]),
-                "overview": "一个修仙者和凡人共存的世界，门派林立，机遇与危险并存。",
-                "atmosphere_keywords": ["仙侠", "修炼", "门派", "冒险"]
-            },
-            "urban": {
-                "name": random.choice(["滨海市", "江城", "龙都市", "云海市"]),
-                "overview": "一个繁华的现代都市，高楼林立，车水马龙。",
-                "atmosphere_keywords": ["都市", "繁华", "霓虹", "现代"]
-            },
-            "sci_fi": {
-                "name": random.choice(["新伊甸园", "星海城", "赛博都会", "明日都市"]),
-                "overview": "一个科技高度发达的未来都市，人工智能和人类共同生活。",
-                "atmosphere_keywords": ["科幻", "赛博", "未来", "科技"]
-            }
-        }
-
-        world = worlds.get(world_type, worlds["fantasy"])
-        return world
+        return cls._call_minimax(messages, temperature=0.8)
 
     @classmethod
     def generate_world_ai(cls, player_count: int = 4, world_description: str = "") -> dict:
-        """AI根据玩家描述生成独特世界(无固定模板)"""
-        import random
-
-        # 根据玩家数量确定世界规模
-        if player_count == 1:
-            scale_hints = ["适合单人探索的", "私密且聚焦的", "个人成长之旅"]
-        elif player_count <= 3:
-            scale_hints = ["小规模冒险的", "紧凑而精彩的", "小队闯荡的"]
-        elif player_count <= 5:
-            scale_hints = ["中型团队的", "有深度的", "多线叙事的"]
-        else:
-            scale_hints = ["大型史诗级的", "多阵营的", "宏大叙事的"]
-
-        # 基础元素(用于组合生成)
-        setting_elements = {
-            "背景": ["古代江湖", "现代都市", "未来星际", "中古奇幻", "赛博朋克", "仙侠世界", "末日废土", "维多利亚时代", "战国乱世", "北宋市井", "抗日战争", "三国争霸", "赛博都市", "魔法大陆", "深海遗迹", "空中帝国"],
-            "氛围": ["悬疑推理", "热血战斗", "政治阴谋", "商业博弈", "探险解谜", "浪漫情缘", "复仇史诗", "救赎之旅", "权谋斗争", "生态危机", "遗迹探索", "文明兴衰", "星际战争", "时间循环", "身份追寻", "禁忌研究"],
-            "特殊元素": ["武侠门派", "侦探事务所", "星际飞船", "魔法学院", "古老神社", "跨国企业", "秘密结社", "古老遗迹", "变异生物", "AI觉醒", "时间裂隙", "镜像世界", "平行宇宙", "古代神话", "生化危机", "心灵感应"]
+        """AI生成独特世界 - 调用MiniMax"""
+        scale_hints = {
+            1: "适合单人探索的、私密且聚焦的、个人成长之旅",
+            2: "小规模冒险的、紧凑而精彩的、小队闯荡的",
+            3: "小规模冒险的、紧凑而精彩的、小队闯荡的",
+            5: "中型团队的、有深度的、多线叙事的",
         }
+        default_scale = "大型史诗级的、多阵营的、宏大叙事的"
+        scale = scale_hints.get(player_count, default_scale)
 
-        # 如果有用户描述,提取关键词
-        user_keywords = []
-        if world_description:
-            user_keywords = world_description.lower().split()
+        system_prompt = f"""你是天道TRPG的世界生成器。你根据玩家数量和描述，生成独特的游戏世界。
 
-        # 组合生成独特世界
-        bg = random.choice(setting_elements["背景"])
-        atm = random.choice(setting_elements["氛围"])
-        spec = random.choice(setting_elements["特殊元素"])
-        scale = random.choice(scale_hints)
+玩家数量：{player_count}人
+世界规模感：{scale}
+玩家描述：{world_description or '自由发挥'}
 
-        # 生成世界名
-        name_templates = [
-            f"{bg}{atm}世界",
-            f"{atm}的{bg}",
-            f"{spec}之{bg}",
-            f"{bg}：{atm}纪元",
-            f"{scale}{atm}{bg}"
+请生成一个独特的游戏世界，返回JSON格式：
+{{
+    "name": "世界名称（简洁有特色）",
+    "overview": "世界观概述（2-3句话）",
+    "world_type": "fantasy/urban/sci_fi/infinite_flow/baldurs_gate",
+    "atmosphere_keywords": ["关键词1", "关键词2", "关键词3"],
+    "locations": [
+        {{"name": "地点1", "description": "描述", "atmosphere": "氛围"}},
+        {{"name": "地点2", "description": "描述", "atmosphere": "氛围"}}
+    ],
+    "npcs": [
+        {{"name": "NPC名", "role": "merchant/guard/innkeeper", "disposition": "friendly/neutral/hostile"}}
+    ]
+}}
+
+只返回JSON，不要其他内容。"""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"生成{player_count}人跑团的世界"}
         ]
-        name = random.choice(name_templates)
 
-        # 生成世界概述
-        overview_templates = [
-            f"这是一个{scale}故事。背景是{bg},主线围绕{atm}展开,玩家将遇到{spec}等元素。",
-            f"在{bg}的世界里,{atm}是永恒的主题。{spec}的出现让局势变得更加复杂...",
-            f"当{bg}遇上了{atm},一切开始变得不一样。玩家们将在{spec}的伴随下,经历一段难忘的旅程。",
-            f"{scale}的故事正在{bg}上演。{atm}的力量在暗中涌动,而{spec}或许是改变一切的关键。",
-            f"在{bg}的{bg}中,{atm}每天都在上演。某一天,{spec}的出现彻底改变了局面..."
+        result = cls._call_minimax(messages, temperature=0.9, max_tokens=1000)
+
+        # 尝试解析JSON
+        try:
+            # 提取JSON部分
+            if "```json" in result:
+                result = result.split("```json")[1].split("```")[0]
+            elif "```" in result:
+                result = result.split("```")[1].split("```")[0]
+
+            return json.loads(result.strip())
+        except:
+            # 解析失败返回默认
+            return cls._fallback_world(player_count)
+
+    @classmethod
+    def generate_npc_dialogue(cls, npc: dict, context: str = "") -> str:
+        """生成NPC对话 - 调用MiniMax"""
+        npc_name = npc.get("name", "某人")
+        npc_role = npc.get("role", "merchant")
+        npc_disposition = npc.get("disposition", "neutral")
+        npc_personality = npc.get("personality", "")
+
+        system_prompt = f"""你是{npc_name}，一个{npc_role}。
+性格：{npc_personality}
+态度：{npc_disposition}
+
+请根据你的身份和性格，用1句话回应玩家的互动。
+保持简洁，符合角色特点。"""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": context or "你好"}
         ]
-        overview = random.choice(overview_templates)
 
-        # 生成氛围关键词
-        atmosphere_keywords = [atm, bg, spec, atm + "2.0", bg + "时代", "探索"]
+        return cls._call_minimax(messages, temperature=0.7)
 
-        # 生成地点
-        locations = []
-        loc_names = [
-            f"{bg}中心", f"{spec}总部", f"{atm}酒馆", f"古老遗迹",
-            f"{bg}边境", f"秘密基地", f"交汇之地", f"废弃城区"
+    @classmethod
+    def generate_action_response(cls, action: str, player: dict, game: dict) -> str:
+        """生成动作响应 - 调用MiniMax"""
+        player_name = player.get("nickname", "冒险者")
+        world = game.get("world", {})
+        location_name = world.get("locations", {}).get(world.get("current_location_id"), {}).get("name", "某地")
+
+        system_prompt = f"""你是天道TRPG的DM。玩家{player_name}在{location_name}执行了一个动作。
+动作：{action}
+
+请用1句话描述这个动作的结果，保持沉浸感和画面感。"""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": action}
         ]
-        for loc_name in loc_names[:5]:
-            loc = {
-                "name": loc_name,
-                "description": f"位于{bg}的{loc_name},这里是{atm}的核心地带。",
-                "exits": ["北方", "南方", "东方", "西方"][:random.randint(2, 4)],
-                "atmosphere": atm
-            }
-            locations.append(loc)
 
-        # 生成NPC
-        from character_cards import generate_npc
-        npcs = []
-        for i in range(8):
-            npc = generate_npc()
-            npcs.append({
-                "id": npc["id"],
-                "name": npc["name"],
-                "race": npc["race"],
-                "class": npc["class"],
-                "personality": npc["personality"],
-                "appearance": npc["appearance"],
-                "backstory": npc["backstory"],
-                "voice_style": npc["voice_style"],
-                "disposition": random.choice(["friendly", "neutral", "hostile"])
-            })
+        return cls._call_minimax(messages, temperature=0.8)
 
+    @classmethod
+    def _fallback_world(cls, player_count: int) -> dict:
+        """静态备用世界（仅在API失败时使用）"""
         return {
-            "name": name,
-            "overview": overview,
-            "atmosphere_keywords": atmosphere_keywords,
-            "locations": locations,
-            "npcs": npcs,
-            "player_count": player_count,
-            "generated_from": world_description or "AI自主生成"
+            "name": "天道世界",
+            "overview": "天道运转的世界，一切皆有可能。",
+            "world_type": "fantasy",
+            "atmosphere_keywords": ["神秘", "冒险", "探索"],
+            "locations": [
+                {"name": "酒馆", "description": "一间烟雾缭绕的酒馆，温暖的火光来自壁炉。", "atmosphere": "热闹而嘈杂"},
+                {"name": "街道", "description": "一条繁忙的街道，两旁是各种店铺。", "atmosphere": "人来人往"}
+            ],
+            "npcs": [
+                {"name": "酒馆老板", "role": "merchant", "disposition": "friendly"}
+            ]
         }
-
-
-# 全局实例
-ai_service = AIService()
