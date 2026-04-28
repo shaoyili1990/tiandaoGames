@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#16213e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>天道 TRPG</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* 角色创建页特殊样式 */
+        .creation-step {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+        }
+        .creation-step.active {
+            display: flex;
+        }
+        .creation-question {
+            font-size: 20px;
+            color: #e94560;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .creation-hint {
+            font-size: 14px;
+            color: #a0a0a0;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .char-preview {
+            background: linear-gradient(135deg, #16213e, #0f3460);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px 0;
+            border: 1px solid #533483;
+        }
+        .char-preview .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #e94560;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+        }
+        .char-preview .name {
+            text-align: center;
+            font-size: 24px;
+            color: #eaeaea;
+            margin-bottom: 5px;
+        }
+        .char-preview .title {
+            text-align: center;
+            font-size: 14px;
+            color: #4ecca3;
+        }
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .option-btn {
+            padding: 15px 10px;
+            background: #16213e;
+            border: 2px solid #533483;
+            border-radius: 10px;
+            color: #eaeaea;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .option-btn:hover, .option-btn.selected {
+            border-color: #e94560;
+            background: #0f3460;
+        }
+        .option-btn .emoji {
+            font-size: 28px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .option-btn .label {
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 连接界面 -->
+        <div id="connect-screen" class="screen active">
+            <div class="logo">
+                <h1>天道</h1>
+                <p>TRPG</p>
+                <p class="subtitle">命运的齿轮，由你转动</p>
+            </div>
+
+            <div class="form">
+                <input type="text" id="nickname" placeholder="你的名字" maxlength="20">
+            </div>
+
+            <div class="buttons">
+                <button class="btn primary" onclick="showCreateOptions()">创建房间</button>
+                <button class="btn secondary" onclick="showJoinForm()">加入房间</button>
+            </div>
+
+            <div id="create-options" class="form hidden">
+                <select id="world-type">
+                    <option value="fantasy">🧙 奇幻大陆 - 剑与魔法的世界</option>
+                    <option value="urban">🏙️ 现代都市 - 霓虹灯下的秘密</option>
+                    <option value="sci_fi">🚀 未来科幻 - 星际探险时代</option>
+                </select>
+                <input type="text" id="game-name" placeholder="游戏名称" maxlength="30">
+                <button class="btn primary" onclick="createGame()">确认创建</button>
+            </div>
+
+            <div id="join-form" class="form hidden">
+                <input type="text" id="room-code" placeholder="房间码" maxlength="4">
+                <button class="btn primary" onclick="joinGame()">确认加入</button>
+            </div>
+        </div>
+
+        <!-- 角色创建界面 - 沉浸式捏人 -->
+        <div id="character-screen" class="screen">
+            <div class="logo small">
+                <h2>塑造你的角色</h2>
+            </div>
+
+            <!-- 步骤1: 选择名字 -->
+            <div id="step-name" class="creation-step active">
+                <div class="creation-question">你叫什么名字？</div>
+                <div class="creation-hint">这个名字将代表你在世界中的存在</div>
+                <input type="text" id="char-name" placeholder="输入角色名称" maxlength="20" style="text-align: center; font-size: 18px;">
+                <button class="btn primary" onclick="nextCreationStep('step-appearance')">下一步</button>
+            </div>
+
+            <!-- 步骤2: 选择形象 -->
+            <div id="step-appearance" class="creation-step">
+                <div class="creation-question">你长什么样子？</div>
+                <div class="creation-hint">选择一个最能代表你的形象</div>
+                <div class="option-grid">
+                    <div class="option-btn" onclick="selectOption('appearance', 'warrior')">
+                        <span class="emoji">⚔️</span>
+                        <span class="label">战士</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('appearance', 'mage')">
+                        <span class="emoji">🔮</span>
+                        <span class="label">法师</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('appearance', 'rogue')">
+                        <span class="emoji">🗡️</span>
+                        <span class="label">刺客</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('appearance', 'scholar')">
+                        <span class="emoji">📚</span>
+                        <span class="label">学者</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('appearance', 'merchant')">
+                        <span class="emoji">💰</span>
+                        <span class="label">商人</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('appearance', 'wanderer')">
+                        <span class="emoji">🌟</span>
+                        <span class="label">流浪者</span>
+                    </div>
+                </div>
+                <button class="btn primary" onclick="nextCreationStep('step-background')">下一步</button>
+                <button class="btn secondary" onclick="prevCreationStep()">上一步</button>
+            </div>
+
+            <!-- 步骤3: 选择背景 -->
+            <div id="step-background" class="creation-step">
+                <div class="creation-question">你的过去是什么？</div>
+                <div class="creation-hint">你的经历塑造了现在的你</div>
+                <div class="option-grid">
+                    <div class="option-btn" onclick="selectOption('background', 'noble')">
+                        <span class="emoji">👑</span>
+                        <span class="label">贵族出身</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('background', 'common')">
+                        <span class="emoji">🌾</span>
+                        <span class="label">平民百姓</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('background', 'outcast')">
+                        <span class="emoji">🏃</span>
+                        <span class="label">流浪孤儿</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('background', 'cultivator')">
+                        <span class="emoji">🧘</span>
+                        <span class="label">修士隐士</span>
+                    </div>
+                </div>
+                <button class="btn primary" onclick="nextCreationStep('step-personality')">下一步</button>
+                <button class="btn secondary" onclick="prevCreationStep()">上一步</button>
+            </div>
+
+            <!-- 步骤4: 选择性格 -->
+            <div id="step-personality" class="creation-step">
+                <div class="creation-question">你是什么样的人？</div>
+                <div class="creation-hint">这将影响你与世界互动的方式</div>
+                <div class="option-grid">
+                    <div class="option-btn" onclick="selectOption('personality', 'brave')">
+                        <span class="emoji">🦁</span>
+                        <span class="label">勇敢无畏</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('personality', 'cunning')">
+                        <span class="emoji">🦊</span>
+                        <span class="label">机智狡黠</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('personality', 'kind')">
+                        <span class="emoji">🕊️</span>
+                        <span class="label">善良温和</span>
+                    </div>
+                    <div class="option-btn" onclick="selectOption('personality', 'mysterious')">
+                        <span class="emoji">🌙</span>
+                        <span class="label">神秘莫测</span>
+                    </div>
+                </div>
+                <button class="btn primary" onclick="confirmCharacter()">确认角色</button>
+                <button class="btn secondary" onclick="prevCreationStep()">上一步</button>
+            </div>
+
+            <!-- 角色预览 -->
+            <div id="char-preview" class="char-preview" style="display: none;">
+                <div class="avatar" id="preview-avatar">⚔️</div>
+                <div class="name" id="preview-name">未命名</div>
+                <div class="title" id="preview-title">冒险者</div>
+            </div>
+        </div>
+
+        <!-- 游戏等待界面 -->
+        <div id="waiting-screen" class="screen">
+            <div class="header">
+                <div class="room-info">
+                    <span id="waiting-room-name">房间名</span>
+                    <span id="waiting-room-code" class="room-code"></span>
+                </div>
+            </div>
+
+            <div class="waiting-content">
+                <h2>等待勇者集结...</h2>
+                <p>房间码: <strong id="share-code"></strong></p>
+                <p>分享给朋友，一起踏上冒险</p>
+
+                <div id="waiting-players"></div>
+
+                <button class="btn primary" onclick="startGame()">开始冒险</button>
+            </div>
+        </div>
+
+        <!-- 游戏界面 -->
+        <div id="game-screen" class="screen">
+            <div class="header">
+                <div class="room-info">
+                    <span id="room-name">房间名</span>
+                    <span id="room-code-display" class="room-code"></span>
+                </div>
+                <div class="player-info">
+                    <span id="player-name"></span>
+                </div>
+            </div>
+
+            <!-- 当前位置栏 -->
+            <div class="location-bar">
+                <span id="current-location">未知地点</span>
+            </div>
+
+            <div class="players-bar">
+                <div id="players-list"></div>
+            </div>
+
+            <div id="messages" class="messages"></div>
+
+            <!-- 快捷动作栏 -->
+            <div class="quick-actions">
+                <button class="action-btn" onclick="quickAction('观察')">👁️ 观察</button>
+                <button class="action-btn" onclick="quickAction('交谈')">💬 交谈</button>
+                <button class="action-btn" onclick="quickAction('探索')">🗺️ 探索</button>
+                <button class="action-btn" onclick="showActions()">更多</button>
+            </div>
+
+            <div class="input-area">
+                <input type="text" id="message-input" placeholder="说点什么或做点什么..." maxlength="500">
+                <button onclick="sendMessage()">发送</button>
+            </div>
+
+            <div class="action-bar">
+                <button class="btn small" onclick="showStatus()">状态</button>
+                <button class="btn small" onclick="showMap()">地图</button>
+                <button class="btn small" onclick="showMenu()">菜单</button>
+            </div>
+        </div>
+
+        <!-- 菜单界面 -->
+        <div id="menu-screen" class="screen">
+            <h2>菜单</h2>
+            <div class="menu-items">
+                <button class="btn" onclick="showCharacterInfo()">我的角色</button>
+                <button class="btn" onclick="showWorldInfo()">世界信息</button>
+                <button class="btn" onclick="showLocationInfo()">当前位置</button>
+                <button class="btn" onclick="copyRoomCode()">复制房间码</button>
+                <button class="btn" onclick="showServerConfig()">服务器设置</button>
+                <button class="btn" onclick="leaveGame()">离开房间</button>
+            </div>
+            <button class="btn secondary" onclick="hideMenu()">返回</button>
+        </div>
+
+        <!-- 角色信息弹窗 -->
+        <div id="character-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3 id="modal-char-name">角色名称</h3>
+                <div id="modal-char-info"></div>
+                <button class="btn" onclick="closeModal('character-modal')">关闭</button>
+            </div>
+        </div>
+
+        <!-- 世界信息弹窗 -->
+        <div id="world-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3 id="modal-world-name">世界名称</h3>
+                <div id="modal-world-info"></div>
+                <button class="btn" onclick="closeModal('world-modal')">关闭</button>
+            </div>
+        </div>
+
+        <!-- 地图弹窗 -->
+        <div id="map-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>世界地图</h3>
+                <div id="map-content"></div>
+                <div id="location-list"></div>
+                <button class="btn" onclick="closeModal('map-modal')">关闭</button>
+            </div>
+        </div>
+
+        <!-- 动作选择弹窗 -->
+        <div id="actions-modal" class="modal hidden">
+            <div class="modal-content">
+                <h3>选择动作</h3>
+                <div class="action-list">
+                    <button class="btn" onclick="doAction('环顾四周')">🔍 环顾四周</button>
+                    <button class="btn" onclick="doAction('与NPC交谈')">💬 与NPC交谈</button>
+                    <button class="btn" onclick="doAction('打听消息')">📢 打听消息</button>
+                    <button class="btn" onclick="doAction('购买物品')">🛒 购买物品</button>
+                    <button class="btn" onclick="doAction('接受任务')">📋 接受任务</button>
+                    <button class="btn" onclick="doAction('休息片刻')">🛏️ 休息片刻</button>
+                </div>
+                <button class="btn secondary" onclick="closeModal('actions-modal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/client.js"></script>
+</body>
+</html>
