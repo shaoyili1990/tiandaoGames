@@ -90,6 +90,10 @@ class Player(BaseModel):
     # 在线玩家ID列表 (用于追踪谁在这个玩家的视野里)
     visible_players: List[str] = []
 
+    # 游戏配置
+    player_count: int = 4  # 期望的玩家数量
+    world_description: str = ""  # 用户描述想要的世界
+
     def get_display_name(self) -> str:
         """获取显示名称"""
         name = self.nickname

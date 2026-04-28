@@ -116,6 +116,22 @@
             border-color: #4ecca3;
             color: #fff;
         }
+        .loading-bar {
+            width: 80%;
+            max-width: 400px;
+            height: 20px;
+            background: #16213e;
+            border-radius: 10px;
+            margin: 20px auto;
+            overflow: hidden;
+        }
+        .loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #e94560, #4ecca3);
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
     </style>
 </head>
 <body>
@@ -138,13 +154,17 @@
             </div>
 
             <div id="create-options" class="form hidden">
-                <select id="world-type">
-                    <option value="fantasy">🧙 奇幻大陆 - 剑与魔法的世界</option>
-                    <option value="urban">🏙️ 现代都市 - 霓虹灯下的秘密</option>
-                    <option value="sci_fi">🚀 未来科幻 - 星际探险时代</option>
-                    <option value="infinite_flow">🌌 无限流 - 诸神空间,轮回穿越</option>
-                    <option value="baldurs_gate">⚔️ 博德之门 - D&D 5e跑团</option>
+                <select id="player-count" style="margin-bottom:10px;">
+                    <option value="1">单人模式 (1人)</option>
+                    <option value="2">双人模式 (2人)</option>
+                    <option value="3">三人模式 (3人)</option>
+                    <option value="4" selected>小队模式 (4人)</option>
+                    <option value="5">团队模式 (5人)</option>
+                    <option value="6">大型行动 (6人)</option>
+                    <option value="7">大型行动 (7人)</option>
+                    <option value="8">最大规模 (8人)</option>
                 </select>
+                <input type="text" id="world-description" placeholder="描述你想要的世界类型..." maxlength="100" style="width:100%;margin-bottom:8px;">
                 <input type="text" id="game-name" placeholder="游戏名称" maxlength="30">
                 <button class="btn primary" onclick="createGame()">确认创建</button>
             </div>
@@ -284,11 +304,28 @@
                 <h2>等待勇者集结...</h2>
                 <p>房间码: <strong id="share-code"></strong></p>
                 <p>分享给朋友，一起踏上冒险</p>
+                <p id="player-count-info">目标: <span id="target-count">4</span>人 | 当前: <span id="current-count">1</span>人</p>
 
                 <div id="waiting-players"></div>
 
-                <button class="btn primary" onclick="startGame()">开始冒险</button>
+                <button class="btn primary" id="start-btn" onclick="startGame()">开始冒险</button>
+                <p id="solo-hint" style="font-size:12px;color:#888;margin-top:10px;display:none;">单人模式可随时开始</p>
             </div>
+        </div>
+
+        <!-- 游戏加载界面 -->
+        <div id="loading-screen" class="screen">
+            <div class="logo small">
+                <h2>天道正在生成世界...</h2>
+            </div>
+            <div id="loading-info" style="text-align:center;color:#888;margin:20px 0;">
+                正在根据你的描述生成独特的世界
+            </div>
+            <div class="loading-bar">
+                <div class="loading-progress" id="loading-progress"></div>
+            </div>
+            <p id="loading-status" style="text-align:center;color:#4ecca3;">正在构建世界观...</p>
+            <p id="loading-estimate" style="text-align:center;color:#666;font-size:12px;">预计等待 5-10 秒</p>
         </div>
 
         <!-- 游戏界面 -->

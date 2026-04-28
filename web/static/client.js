@@ -195,19 +195,49 @@ function confirmCharacter() {
         return;
     }
 
+    // 获取目标玩家数
+    const targetCount = parseInt(document.getElementById('player-count')?.value) || 4;
+
     // 发送到服务器
     fetch(`${API_BASE}/api/game/${gameId}/character`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(charCreation)
     }).then(() => {
-        // 跳转到等待或游戏界面
-        if (currentGame && currentGame.status === 'playing') {
-            showScreen('game-screen');
-        } else {
-            showScreen('waiting-screen');
+        // 跳转到等待界面
+        showScreen('waiting-screen');
+        
+        // 更新等待界面信息
+        document.getElementById('target-count').textContent = targetCount;
+        document.getElementById('current-count').textContent = '1';
+        
+        // 单人模式提示
+        if (targetCount === 1) {
+            document.getElementById('solo-hint').style.display = 'block';
+            document.getElementById('start-btn').textContent = '独自冒险';
         }
+        
+        // 更新玩家列表
+        updateWaitingPlayers();
     });
+}
+
+function updateWaitingPlayers() {
+    const playersDiv = document.getElementById('waiting-players');
+    if (!playersDiv) return;
+    
+    let html = '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">';
+    if (currentGame && currentGame.core_members) {
+        currentGame.core_members.forEach(p => {
+            const ready = p.character && p.character.name ? '✓' : '○';
+            html += `<div style="background:#16213e;padding:10px 20px;border-radius:20px;">
+                <span style="color:#4ecca3">${ready}</span> ${p.nickname}
+                <span style="color:#888;font-size:12px;">${p.character?.name || '待捏人'}</span>
+            </div>`;
+        });
+    }
+    html += '</div>';
+    playersDiv.innerHTML = html;
 }
 
 // ============================================
@@ -216,7 +246,8 @@ function confirmCharacter() {
 
 async function createGame() {
     nickname = document.getElementById('nickname').value.trim() || '匿名';
-    const worldType = document.getElementById('world-type').value;
+    const playerCount = parseInt(document.getElementById('player-count').value) || 4;
+    const worldDescription = document.getElementById('world-description').value.trim() || '';
     const gameName = document.getElementById('game-name').value.trim() || '冒险之旅';
 
     try {
@@ -226,7 +257,8 @@ async function createGame() {
             body: JSON.stringify({
                 owner_nickname: nickname,
                 game_name: gameName,
-                world_type: worldType
+                player_count: playerCount,
+                world_description: worldDescription
             })
         });
 
@@ -301,16 +333,57 @@ async function joinGame() {
 }
 
 async function startGame() {
+    // 显示加载界面
+    showScreen('loading-screen');
+    
+    // 模拟加载进度 (实际由服务器AI生成世界)
+    let progress = 0;
+    const progressBar = document.getElementById('loading-progress');
+    const statusEl = document.getElementById('loading-status');
+    const estimateEl = document.getElementById('loading-estimate');
+    
+    const statuses = [
+        '正在理解世界设定...',
+        '正在构建世界观...',
+        '正在生成NPC...',
+        '正在设计场景...',
+        '正在编织命运...',
+        '即将开启你的旅程...'
+    ];
+    
+    const interval = setInterval(() => {
+        progress += Math.random() * 15 + 5;
+        if (progress > 100) progress = 100;
+        if (progressBar) progressBar.style.width = progress + '%';
+        
+        const statusIdx = Math.floor(progress / 20);
+        if (statusEl) statusEl.textContent = statuses[statusIdx] || statuses[statuses.length-1];
+        
+        if (progress >= 100) {
+            clearInterval(interval);
+        }
+    }, 400);
+    
+    estimateEl.textContent = 'AI正在发挥创意...';
+    
     try {
         const resp = await fetch(`${API_BASE}/api/game/${gameId}/start`, {
             method: 'POST'
         });
 
         if (resp.ok) {
-            enterGameScreen();
+            clearInterval(interval);
+            if (progressBar) progressBar.style.width = '100%';
+            if (statusEl) statusEl.textContent = '世界已就绪!';
+            
+            setTimeout(() => {
+                enterGameScreen();
+            }, 500);
         }
     } catch (e) {
-        alert('开始游戏失败');
+        clearInterval(interval);
+        alert('开始游戏失败: ' + e);
+        showScreen('waiting-screen');
     }
 }
 

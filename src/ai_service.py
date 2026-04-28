@@ -351,6 +351,104 @@ class AIService:
         world = worlds.get(world_type, worlds["fantasy"])
         return world
 
+    @classmethod
+    def generate_world_ai(cls, player_count: int = 4, world_description: str = "") -> dict:
+        """AI根据玩家描述生成独特世界(无固定模板)"""
+        import random
+
+        # 根据玩家数量确定世界规模
+        if player_count == 1:
+            scale_hints = ["适合单人探索的", "私密且聚焦的", "个人成长之旅"]
+        elif player_count <= 3:
+            scale_hints = ["小规模冒险的", "紧凑而精彩的", "小队闯荡的"]
+        elif player_count <= 5:
+            scale_hints = ["中型团队的", "有深度的", "多线叙事的"]
+        else:
+            scale_hints = ["大型史诗级的", "多阵营的", "宏大叙事的"]
+
+        # 基础元素(用于组合生成)
+        setting_elements = {
+            "背景": ["古代江湖", "现代都市", "未来星际", "中古奇幻", "赛博朋克", "仙侠世界", "末日废土", "维多利亚时代", "战国乱世", "北宋市井", "抗日战争", "三国争霸", "赛博都市", "魔法大陆", "深海遗迹", "空中帝国"],
+            "氛围": ["悬疑推理", "热血战斗", "政治阴谋", "商业博弈", "探险解谜", "浪漫情缘", "复仇史诗", "救赎之旅", "权谋斗争", "生态危机", "遗迹探索", "文明兴衰", "星际战争", "时间循环", "身份追寻", "禁忌研究"],
+            "特殊元素": ["武侠门派", "侦探事务所", "星际飞船", "魔法学院", "古老神社", "跨国企业", "秘密结社", "古老遗迹", "变异生物", "AI觉醒", "时间裂隙", "镜像世界", "平行宇宙", "古代神话", "生化危机", "心灵感应"]
+        }
+
+        # 如果有用户描述,提取关键词
+        user_keywords = []
+        if world_description:
+            user_keywords = world_description.lower().split()
+
+        # 组合生成独特世界
+        bg = random.choice(setting_elements["背景"])
+        atm = random.choice(setting_elements["氛围"])
+        spec = random.choice(setting_elements["特殊元素"])
+        scale = random.choice(scale_hints)
+
+        # 生成世界名
+        name_templates = [
+            f"{bg}{atm}世界",
+            f"{atm}的{bg}",
+            f"{spec}之{bg}",
+            f"{bg}：{atm}纪元",
+            f"{scale}{atm}{bg}"
+        ]
+        name = random.choice(name_templates)
+
+        # 生成世界概述
+        overview_templates = [
+            f"这是一个{scale}故事。背景是{bg},主线围绕{atm}展开,玩家将遇到{spec}等元素。",
+            f"在{bg}的世界里,{atm}是永恒的主题。{spec}的出现让局势变得更加复杂...",
+            f"当{bg}遇上了{atm},一切开始变得不一样。玩家们将在{spec}的伴随下,经历一段难忘的旅程。",
+            f"{scale}的故事正在{bg}上演。{atm}的力量在暗中涌动,而{spec}或许是改变一切的关键。",
+            f"在{bg}的{bg}中,{atm}每天都在上演。某一天,{spec}的出现彻底改变了局面..."
+        ]
+        overview = random.choice(overview_templates)
+
+        # 生成氛围关键词
+        atmosphere_keywords = [atm, bg, spec, atm + "2.0", bg + "时代", "探索"]
+
+        # 生成地点
+        locations = []
+        loc_names = [
+            f"{bg}中心", f"{spec}总部", f"{atm}酒馆", f"古老遗迹",
+            f"{bg}边境", f"秘密基地", f"交汇之地", f"废弃城区"
+        ]
+        for loc_name in loc_names[:5]:
+            loc = {
+                "name": loc_name,
+                "description": f"位于{bg}的{loc_name},这里是{atm}的核心地带。",
+                "exits": ["北方", "南方", "东方", "西方"][:random.randint(2, 4)],
+                "atmosphere": atm
+            }
+            locations.append(loc)
+
+        # 生成NPC
+        from character_cards import generate_npc
+        npcs = []
+        for i in range(8):
+            npc = generate_npc()
+            npcs.append({
+                "id": npc["id"],
+                "name": npc["name"],
+                "race": npc["race"],
+                "class": npc["class"],
+                "personality": npc["personality"],
+                "appearance": npc["appearance"],
+                "backstory": npc["backstory"],
+                "voice_style": npc["voice_style"],
+                "disposition": random.choice(["friendly", "neutral", "hostile"])
+            })
+
+        return {
+            "name": name,
+            "overview": overview,
+            "atmosphere_keywords": atmosphere_keywords,
+            "locations": locations,
+            "npcs": npcs,
+            "player_count": player_count,
+            "generated_from": world_description or "AI自主生成"
+        }
+
 
 # 全局实例
 ai_service = AIService()

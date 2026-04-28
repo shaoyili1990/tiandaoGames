@@ -127,7 +127,8 @@ manager = ConnectionManager()
 class CreateGameRequest(BaseModel):
     owner_nickname: str
     game_name: str = "新游戏"
-    world_type: str = "fantasy"
+    player_count: int = 4  # 默认4人小队
+    world_description: str = ""  # 用户描述想要的世界,AI生成
 
 class JoinGameRequest(BaseModel):
     room_code: str
@@ -164,7 +165,7 @@ async def health():
 
 @app.post("/api/game/create")
 async def create_game(request: CreateGameRequest):
-    """创建新游戏"""
+    """创建新游戏 - AI根据用户描述生成世界"""
     # 清理昵称
     nickname = request.owner_nickname.strip()[:20]
     if not nickname:
@@ -172,13 +173,30 @@ async def create_game(request: CreateGameRequest):
 
     game = game_manager.create_game(nickname, request.game_name)
 
-    # 生成世界
-    game_manager.generate_world(game.game_id, request.world_type)
+    # 存储玩家数量和世界描述
+    game.player_count = request.player_count
+    game.world_description = request.world_description
+
+    # AI生成世界 (基于用户描述,非固定模板)
+    from ai_service import AIService
+    ai_service = AIService()
+    world_data = ai_service.generate_world_ai(
+        player_count=request.player_count,
+        world_description=request.world_description
+    )
+
+    # 应用AI生成的世界
+    if world_data:
+        game.world.name = world_data.get("name", game.name)
+        game.world.overview = world_data.get("overview", "")
+        game.world.atmosphere_keywords = world_data.get("atmosphere_keywords", [])
 
     return {
         "game_id": game.game_id,
         "room_code": game.room_code,
         "owner_id": game.owner_id,
+        "player_count": request.player_count,
+        "world_description": request.world_description,
         "game": game.model_dump()
     }
 
