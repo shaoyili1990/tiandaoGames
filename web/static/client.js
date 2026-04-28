@@ -137,6 +137,23 @@ function getCharTitle() {
     return `${bg}${app}`;
 }
 
+function updateProgressBar() {
+    const steps = ['step-name', 'step-appearance', 'step-background', 'step-personality'];
+    const currentIndex = steps.findIndex(id => document.getElementById(id).classList.contains('active'));
+    
+    document.querySelectorAll('.progress-step').forEach((el, idx) => {
+        if (idx < currentIndex) {
+            el.classList.add('completed');
+            el.classList.remove('active');
+        } else if (idx === currentIndex) {
+            el.classList.add('active');
+            el.classList.remove('completed');
+        } else {
+            el.classList.remove('active', 'completed');
+        }
+    });
+}
+
 function nextCreationStep(nextId) {
     // 验证当前步骤
     if (document.getElementById('step-name').classList.contains('active')) {
@@ -152,6 +169,9 @@ function nextCreationStep(nextId) {
     document.querySelectorAll('.creation-step').forEach(s => s.classList.remove('active'));
     // 显示下一步
     document.getElementById(nextId)?.classList.add('active');
+    
+    // 更新进度条
+    updateProgressBar();
 }
 
 function prevCreationStep() {
@@ -161,6 +181,7 @@ function prevCreationStep() {
     if (currentIndex > 0) {
         document.querySelectorAll('.creation-step').forEach(s => s.classList.remove('active'));
         document.getElementById(steps[currentIndex - 1]).classList.add('active');
+        updateProgressBar();
     }
 }
 
@@ -546,7 +567,8 @@ function getWorldTypeName(type) {
     const names = {
         'fantasy': '奇幻大陆',
         'urban': '现代都市',
-        'sci_fi': '未来科幻'
+        'sci_fi': '未来科幻',
+        'infinite_flow': '无限流·诸神空间'
     };
     return names[type] || type;
 }

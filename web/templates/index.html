@@ -91,6 +91,31 @@
         .option-btn .label {
             font-size: 14px;
         }
+        .creation-progress {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin: 10px 0 20px;
+        }
+        .progress-step {
+            padding: 5px 12px;
+            background: #16213e;
+            border: 1px solid #533483;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #888;
+            transition: all 0.3s;
+        }
+        .progress-step.active {
+            background: #e94560;
+            border-color: #e94560;
+            color: #fff;
+        }
+        .progress-step.completed {
+            background: #4ecca3;
+            border-color: #4ecca3;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -117,6 +142,7 @@
                     <option value="fantasy">🧙 奇幻大陆 - 剑与魔法的世界</option>
                     <option value="urban">🏙️ 现代都市 - 霓虹灯下的秘密</option>
                     <option value="sci_fi">🚀 未来科幻 - 星际探险时代</option>
+                    <option value="infinite_flow">🌌 无限流 - 诸神空间,轮回穿越</option>
                 </select>
                 <input type="text" id="game-name" placeholder="游戏名称" maxlength="30">
                 <button class="btn primary" onclick="createGame()">确认创建</button>
@@ -132,6 +158,14 @@
         <div id="character-screen" class="screen">
             <div class="logo small">
                 <h2>塑造你的角色</h2>
+            </div>
+
+            <!-- 步骤进度条 -->
+            <div class="creation-progress">
+                <div class="progress-step active" data-step="step-name">名字</div>
+                <div class="progress-step" data-step="step-appearance">形象</div>
+                <div class="progress-step" data-step="step-background">背景</div>
+                <div class="progress-step" data-step="step-personality">性格</div>
             </div>
 
             <!-- 步骤1: 选择名字 -->

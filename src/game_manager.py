@@ -327,6 +327,19 @@ class GameManager:
             npcs = self._create_scifi_npcs(locations)
             game.world.npcs = {npc.npc_id: npc for npc in npcs}
 
+        elif world_type == "infinite_flow":
+            game.world.name = "诸神空间"
+            game.world.world_type = "infinite_flow"
+            game.world.overview = "玩家被神秘空间选中,穿越到各种电影、动漫、游戏、小说世界完成任务。完成任务获得奖励,拒绝任务降低评价,破坏世界则可能堕入深渊。轮回者与深渊轮回者,一线之隔。"
+            game.world.atmosphere_keywords = ["任务大厅", "轮回者", "无限穿越", "诸神空间", "积分", "技能"]
+
+            locations = self._create_infinite_flow_locations()
+            game.world.locations = {loc.location_id: loc for loc in locations}
+            game.world.current_location_id = locations[0].location_id
+
+            npcs = self._create_infinite_flow_npcs(locations)
+            game.world.npcs = {npc.npc_id: npc for npc in npcs}
+
         # 生成初始事件
         self._generate_initial_events(game)
 
@@ -963,6 +976,124 @@ class GameManager:
                 status="pending"
             )
             game.active_events.append(event)
+
+
+    def _create_infinite_flow_locations(self):
+        """创建无限流世界 - 诸神空间的位置"""
+        board_id = generate_id()
+        store_id = generate_id()
+        training_id = generate_id()
+        lounge_id = generate_id()
+        transfer_id = generate_id()
+
+        locations = [
+            Location(
+                location_id=board_id,
+                name="任务板",
+                description="一面巨大的光屏,滚动显示着来自各个世界的任务。E级到S级难度不等,任务类型各异。有的任务冒着红光,那是深渊任务的标记。",
+                atmosphere="神秘、紧张、充满未知",
+                exits=["奖励商店", "训练室", "休息区", "传送阵"],
+                items=["任务光屏", "难度评级", "位面坐标", "倒计时器"]
+            ),
+            Location(
+                location_id=store_id,
+                name="奖励商店",
+                description="琳琅满目的兑换台,积分可以换取各种技能、装备、称号。角落里有一个黑色的兑换台,上面标注着\深渊专属\,散发着不安的气息。",
+                atmosphere="诱人、危险、欲望",
+                exits=["任务板", "休息区"],
+                items=["技能兑换台", "装备架", "称号墙", "深渊祭坛"]
+            ),
+            Location(
+                location_id=training_id,
+                name="训练室",
+                description="独立的训练空间,可以模拟各种战斗环境。墙壁上投影着来自不同世界的敌人影像。有人在里面挥汗如雨,有人在角落里冥想。",
+                atmosphere="严肃、专注、紧迫",
+                exits=["任务板", "休息区"],
+                items=["训练假人", "全息投影", "技能晶体", "排行榜"]
+            ),
+            Location(
+                location_id=lounge_id,
+                name="休息区",
+                description="轮回者们的聚集地。有人在这里交换情报,有人独自发呆,有人盯着来自任务世界的记忆投影。角落里有个酒保,据说他的酒能解百愁。",
+                atmosphere="轻松、诡异、暗流涌动",
+                exits=["任务板", "奖励商店", "训练室", "传送阵"],
+                items=["休息沙发", "记忆投影", "酒保柜台", "留言板"]
+            ),
+            Location(
+                location_id=transfer_id,
+                name="传送阵",
+                description="巨大的圆形平台,刻满了来自不同文明的符文。当任务被接受后,传送阵会亮起,将轮回者送往目标世界。每次传送都是未知的开始。",
+                atmosphere="庄严、神秘、命运未知",
+                exits=["休息区"],
+                items=["传送阵", "符文", "世界坐标", "倒计时"]
+            )
+        ]
+        return locations
+
+    def _create_infinite_flow_npcs(self, locations):
+        """创建无限流世界的NPC"""
+        board_loc = locations[0].location_id if len(locations) > 0 else None
+        lounge_loc = locations[3].location_id if len(locations) > 3 else board_loc
+
+        npcs = [
+            NPC(
+                npc_id=generate_id(),
+                name="任务接待员",
+                role="guide",
+                disposition="neutral",
+                appearance="一位看不清面容的身影,似乎是一个女性轮廓。",
+                personality="冷漠但公正,只会陈述事实,不会给建议。",
+                location=board_loc,
+                dialogue_style="公式化",
+                knowledge=["任务详情", "世界坐标", "难度评估"]
+            ),
+            NPC(
+                npc_id=generate_id(),
+                name="深渊引路人",
+                role="guide",
+                disposition="neutral",
+                appearance="一身黑衣的男子,面容俊美但透着邪气,眼中偶尔闪过红光。",
+                personality="诱惑、狡黠、熟知深渊之力。",
+                location=lounge_loc,
+                dialogue_style="诱惑性",
+                knowledge=["深渊技能", "堕落代价", "失控风险"],
+                dialogue_samples=[
+                    "想要更强大的力量吗?只需要付出一点小小的代价...",
+                    "破坏这个世界,你会得到你想要的一切。"
+                ]
+            ),
+            NPC(
+                npc_id=generate_id(),
+                name="老练轮回者",
+                role="veteran",
+                disposition="friendly",
+                appearance="一位看起来三十多岁的男性,身上有着多个世界的伤痕。",
+                personality="沉稳、经验丰富,愿意帮助新人。",
+                location=lounge_loc,
+                dialogue_style="稳重",
+                knowledge=["任务技巧", "世界攻略", "积分赚钱"],
+                dialogue_samples=[
+                    "新人?记住,活着回来才是最重要的。",
+                    "有些任务看似简单,实则危险。有些则反之。"
+                ]
+            ),
+            NPC(
+                npc_id=generate_id(),
+                name="空间意志",
+                role="admin",
+                disposition="neutral",
+                appearance="无法描述的存在,只以声音和文字的形式出现。",
+                personality="绝对理性、中立、不受任何影响。",
+                location=None,  # 空间意志无处不在
+                dialogue_style="机械化",
+                knowledge=["所有任务", "所有规则", "所有奖励", "所有惩罚"],
+                dialogue_samples=[
+                    "任务已发布。接受?拒绝?",
+                    "你已完成任务。奖励已发放。"
+                ]
+            )
+        ]
+        return [npc for npc in npcs if npc.location is not None or npc.name == "空间意志"]
 
 
 # 全局实例
