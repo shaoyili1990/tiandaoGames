@@ -568,7 +568,8 @@ function getWorldTypeName(type) {
         'fantasy': '奇幻大陆',
         'urban': '现代都市',
         'sci_fi': '未来科幻',
-        'infinite_flow': '无限流·诸神空间'
+        'infinite_flow': '无限流·诸神空间',
+        'baldurs_gate': '博德之门'
     };
     return names[type] || type;
 }

@@ -340,6 +340,45 @@ class GameManager:
             npcs = self._create_infinite_flow_npcs(locations)
             game.world.npcs = {npc.npc_id: npc for npc in npcs}
 
+        elif world_type == "baldurs_gate":
+            # 博德之门世界
+            game.world.name = "博德之门"
+            game.world.world_type = "baldurs_gate"
+            game.world.overview = "基于D&D 5e规则的史诗跑团。扮演被脑蚀寄生的冒险者,在博德之门地区召集同伴,对抗夺心魔,探索被遗忘的国度。"
+            game.world.atmosphere_keywords = ["D&D 5e", "博德之门", "龙与地下城", "夺心魔", "冒险"]
+
+            from baldurs_gate import BG3_LOCATIONS, BG3_COMPANIONS
+            locations = []
+            for loc_data in BG3_LOCATIONS:
+                loc = Location(
+                    location_id=generate_id(),
+                    name=loc_data["name"],
+                    description=loc_data["desc"],
+                    atmosphere=loc_data.get("atmosphere", ""),
+                    exits=loc_data.get("exits", []),
+                    items=[]
+                )
+                locations.append(loc)
+            game.world.locations = {loc.location_id: loc for loc in locations}
+            game.world.current_location_id = locations[0].location_id
+
+            npcs = []
+            for comp_data in BG3_COMPANIONS:
+                npc = NPC(
+                    npc_id=generate_id(),
+                    name=comp_data["name"],
+                    role="companion",
+                    disposition="friendly",
+                    appearance=f"{comp_data['race']} {comp_data['class']}",
+                    personality=comp_data["personality"],
+                    location=locations[0].location_id,
+                    dialogue_style="friendly" if comp_data["alignment"].find("good") >= 0 else "neutral",
+                    knowledge=["任务建议", "背景故事"],
+                    dialogue_samples=[comp_data.get("backstory", "")]
+                )
+                npcs.append(npc)
+            game.world.npcs = {npc.npc_id: npc for npc in npcs}
+
         # 生成初始事件
         self._generate_initial_events(game)
 

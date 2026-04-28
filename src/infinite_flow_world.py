@@ -561,6 +561,91 @@ ALL_WORLDS = MOVIE_WORLDS + ANIME_WORLDS + GAME_WORLDS + NOVEL_WORLDS
 
 
 # ============================================
+# 公共奖励分配系统 (魔兽世界副本风格)
+# ============================================
+WOW_LOOT_SYSTEM = {
+    "name": "公共奖励分配",
+    "modes": [
+        {
+            "id": "need_before_greed",
+            "name": "需求优先于贪婪",
+            "desc": "适合自己职业的装备投Need骰,不急需但想要的投Greed骰",
+            "priority_order": ["need", "greed", "pass"]
+        },
+        {
+            "id": "round_robin",
+            "name": "轮抓分配",
+            "desc": "按房间码顺序轮转分配权,每人优先选择一件",
+            "priority_order": ["轮抓", "贪婪", "跳过"]
+        },
+        {
+            "id": "master_looter",
+            "name": "分配者决定",
+            "desc": "队长/房主决定物品归属",
+            "priority_order": ["队长分配"]
+        }
+    ],
+
+    "roll_types": [
+        {"id": "need", "name": "需求", "icon": "🎯", "desc": "我需要这个", "priority": 1},
+        {"id": "greed", "name": "贪婪", "icon": "💰", "desc": "我也想要", "priority": 2},
+        {"id": "pass", "name": "跳过", "icon": "✋", "desc": "放弃", "priority": 0}
+    ],
+
+    # 稀有度及颜色(魔兽世界风格)
+    "rarities": [
+        {"id": "common", "name": "普通", "color": "#ffffff", "weight": 60},
+        {"id": "uncommon", "name": "优秀", "color": "#1eff00", "weight": 25},
+        {"id": "rare", "name": "稀有", "color": "#0070dd", "weight": 10},
+        {"id": "very_rare", "name": "史诗", "color": "#a335ee", "weight": 4},
+        {"id": "legendary", "name": "传说", "color": "#ff8000", "weight": 1}
+    ],
+
+    # 分配结果消息
+    "narratives": [
+        "【{player}】投出{roll}点(Need),获得了{item}!",
+        "【{player}】投出{roll}点(Greed),竞争中胜出获得{item}!",
+        "【{player}】选择跳过{item}。"
+    ]
+}
+
+
+def roll_loot_distribution(players: list, item: dict, mode: str = "need_before_greed") -> dict:
+    """模拟战利品分配投骰"
+    import random
+
+    # 计算每个玩家的骰子
+    results = []
+    for player in players:
+        # 基础1d100
+        base_roll = random.randint(1, 100)
+        # 需求加成分数(符合职业需求+20)
+        need_bonus = 20 if item.get("class_required") in [player.get("class"), "all"] else 0
+        # 最终投骰
+        final_roll = base_roll + need_bonus
+
+        results.append({
+            "player_id": player.get("id"),
+            "player_name": player.get("nickname", player.get("name", "匿名")),
+            "base_roll": base_roll,
+            "bonus": need_bonus,
+            "final_roll": final_roll,
+            "type": "need" if need_bonus > 0 else "greed"
+        })
+
+    # 按最终骰子排序
+    results.sort(key=lambda x: x["final_roll"], reverse=True)
+
+    winner = results[0]
+    return {
+        "item": item,
+        "winner": winner,
+        "all_results": results,
+        "narrative": f"【{winner['player_name']}】投出{winner['final_roll']}点({winner['type']}),获得了【{item['name']}】!"
+    }
+
+
+# ============================================
 # 无限流世界 - 技能系统
 # ============================================
 INFINITE_FLOW_SKILLS = {
